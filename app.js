@@ -4,6 +4,7 @@ require('dotenv').config();
 const db=require('./db/connection')
 const bodyParser=require('body-parser')
 const morgan =require('morgan')
+const expressValidator=require('express-validator')
 
 
 
@@ -16,7 +17,7 @@ const app=express()
 //middleware
 app.use(bodyParser.json())
 app.use(morgan('dev'))
-
+app.use(expressValidator())
 //route
 
 app.use('/api',categoryRoute)
