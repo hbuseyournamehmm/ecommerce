@@ -5,6 +5,11 @@ const expressJwt = require('express-jwt')
 //for authorization use express-jwt
 
 
+const Token = require('../model/token')
+const sendEmail = require('../utils/verifyEmail')
+const crypto = require('crypto')
+
+
 exports.postUser = (req, res) => {
     let user = new User({
         name: req.body.name,
@@ -16,6 +21,24 @@ exports.postUser = (req, res) => {
         if (!users || error) {
             return res.status(400).json({ error: "unabale to create an account" })
         }
+        const token = new Token({
+
+            token: crypto.randomBytes(16).toString('hex'),
+            userId: users._id
+        })
+        token.save((error) => {
+            if (error) {
+                return res.status(400).json({ error: error })
+            }
+            sendEmail({
+                from: 'no-reply@youWepapplication.com',
+                to: users.email,
+                subject: 'Email Verification Link',
+                text: `Hello, \n\n Please Verify your account by clicking the below link: \n http:\/\/${req.headers.host}\/api\/confirmation\/${token.token}`
+            })
+        })
+
+
         res.json({ users })
     })
 }
@@ -31,6 +54,14 @@ exports.signIn = (req, res) => {
         if (!user.authenticate(password)) {
             return res.status(400).json({ error: "email and password doesnot match" })
         }
+        if (!user.isVerified) {
+            return res.status(400).json({ error: "you need to verify your account before login" })
+        }
+
+
+
+
+
         //new generate token with id and jwt secret
         const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET)
         //persist the token with expiry date using cookie
@@ -69,7 +100,7 @@ exports.read = (req, res) => {
 }
 
 //signout
-exports.signOut= (req, res)=>{
-    res.clearCookie ('t')
-    res.json({message:"Signout success"})
+exports.signOut = (req, res) => {
+    res.clearCookie('t')
+    res.json({ message: "Signout success" })
 }

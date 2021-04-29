@@ -23,9 +23,18 @@ const userSchema=new mongoose. Schema({
         type:String,
         required:true
     },
-    salt:String
+    salt:String,
+
+    isVerified:{
+        type:Boolean,
+        default:false
+    }
 
 },{timestamps:true})
+
+
+
+
 
 //virtual fields
 userSchema.virtual('password')
