@@ -42,6 +42,69 @@ exports.postUser = (req, res) => {
         res.json({ users })
     })
 }
+//confirm email after signup
+exports.postConfirmation = (req, res) => {
+    //at first find the matching token
+    Token.findOne({ token: req.params.token }, (error, token) => {
+        if (error || !token) {
+            return res.status(400).json({ error: "invalid token or token may have expired" })
+        }
+        //if we found the valid token then find the valid user
+        User.findOne({ _id: token.userId }, (error, user) => {
+            if (error || !user) {
+                return res.status(400).json({ error: "we are unable to find the valid user for this token" })
+            }
+            //check if user is already verified or not
+            if (user.isVerified) {
+                return res.status(400).json({ error: "this email is already benn verified please login to continue" })
+            }
+
+            //save the verified user
+            user.isVerified = true
+            user.save((error) => {
+                if (error) {
+                    return res.status(400).json({ error: error })
+                }
+
+                res.json({ message: "Congrats, your account has been verified. Please login to continue" })
+
+            })
+        })
+    })
+}
+
+//resend verification token
+
+exports.resendToken = (req, res) => {
+    //at first fin the register user
+
+    User.findOne({ email: req.body.email }, (error, user) => {
+        if (!user || error) {
+            return res.status(400).json({ error: "the email you provided not found in our system" })
+        }
+        if (user.isVerified) {
+            return res.status(400).json({ error: "the provided email is already verified" })
+        }
+        //now create a token save token to database and verification link
+        const token = new Token({
+            userId: user._id,
+            token: crypto.randomBytes(16).toString('hex')
+        })
+        token.save((error, result) => {
+            if (error || !result) {
+                return res.status(400).json({ error: error })
+            }
+            //send mail
+            sendEmail({
+                from: 'no-reply@yourWepapplication.com',
+                to: user.email,
+                subject: "Email Verification Link",
+                text: `Hello, \n\n Please Verify your account by clicking the below link: \n http:\/\/${req.headers.host}\/api\/confirmation\/${token.token}`
+            })
+        })
+        res.json({ message: "verification link has bee sent to your emil address" })
+    })
+}
 
 exports.signIn = (req, res) => {
     const { email, password } = req.body
@@ -103,4 +166,63 @@ exports.read = (req, res) => {
 exports.signOut = (req, res) => {
     res.clearCookie('t')
     res.json({ message: "Signout success" })
+}
+//imp npm install uuidv1
+
+//forget password
+
+exports.forgetPassword = (req, res) => {
+    User.findOne({email:req.body.email},(error, user) => {
+        if (error || !user) {
+            return res.status(400).json({ error: "sorry the email you provided not found in our system. Please try again" })
+        }
+        const token = new Token({
+            userId: user._id,
+            token: crypto.randomBytes(16).toString('hex')
+        })
+        token.save((error) => {
+            if (error) {
+                return res.status(400).json({ error: "something went wrong" })
+            }
+            //send mail
+            sendEmail({
+                from: 'no-reply@yourWepapplication.com',
+                to: user.email,
+                subject: "Password Reset Link",
+                text: `Hello, \n\n Please reset your password by clicking the below link: \n http:\/\/${req.headers.host}\/api\/resetpassword\/${token.token}`
+
+
+            })
+        })
+        res.json({ message: "password reset link has been sent to your email"})
+    })
+}
+
+//reset password
+
+exports.passwordReset = (req, res) => {
+    //at first find the valid token
+    Token.findOne({ token:req.params.token},(error,token)=>{
+        if(error || !token){
+            return res.status(400).json({ error:"invalid token or token may have expired"})
+
+        }
+        //if token found find the valid user
+        User.findOne({
+            _id:token.userId,
+            email:req.body.email
+        },(error, user)=>{
+            if(error || !user){
+                return res.status(400).json({ error: "sorry the email you provided is not associated with this token"})
+            }
+            //update new password
+            user.password=req.body.password
+            user.save((error)=>{
+                if(error){
+                    return res.status(400).json({ error:"failed to reset paswword"})
+                }
+            })
+            res.json({ message:"password has been reset successfully"})
+        })
+    })
 }
