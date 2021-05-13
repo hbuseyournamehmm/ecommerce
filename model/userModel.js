@@ -17,7 +17,7 @@ const userSchema=new mongoose. Schema({
     },
     role:{
         type:Number,
-        define:0
+        default:0
     },
     hashed_password:{
         type:String,
